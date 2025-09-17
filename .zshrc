@@ -73,7 +73,21 @@ alias l='eza -la'
 eval $(keychain --quiet --eval) # keychain for ssh-agent
 source <(fzf --zsh) # fuzzy finder
 
-export GPG_TTY=$(tty)
+# GPG signing
+if [[ -o interactive ]]; then
+  _set_gpg_tty() {
+    [[ -t 1 ]] || return
+    # Prefer zsh's $TTY (no subprocess). Fall back to `tty` if needed.
+    local cur_tty="$TTY"
+    [[ -n "$cur_tty" && "$cur_tty" != "not a tty" ]] || cur_tty="$(tty 2>/dev/null)" || return
+    if [[ "$GPG_TTY" != "$cur_tty" ]]; then
+      export GPG_TTY="$cur_tty"
+      gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1
+    fi
+  }
+  autoload -U add-zsh-hook
+  add-zsh-hook precmd _set_gpg_tty
+fi
 
 source <(COMPLETE=zsh jj) # jujutsu dynamic completion
 
